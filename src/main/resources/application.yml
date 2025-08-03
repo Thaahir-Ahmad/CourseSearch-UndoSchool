@@ -1,0 +1,9 @@
+spring:
+  application:
+    name: UndoSchool
+
+  elasticsearch:
+    uris: http://localhost:9200
+    username: ""
+    password: ""
+
