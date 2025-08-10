@@ -1,9 +1,10 @@
 spring:
   application:
     name: UndoSchool
+  main:
+    allow-bean-definition-overriding: true
 
   elasticsearch:
     uris: http://localhost:9200
     username: ""
     password: ""
-

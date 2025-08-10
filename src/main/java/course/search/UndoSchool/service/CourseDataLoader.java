@@ -24,6 +24,7 @@ public class CourseDataLoader {
             InputStream courseJsonData = new ClassPathResource("sample-courses.json").getInputStream();
             List<CourseDocument> courses = objectMapper.readValue(courseJsonData, new TypeReference<>() {});
             courseRepository.saveAll(courses);
+
             System.out.println("✅ Sample courses indexed into Elasticsearch.");
         } catch (Exception e) {
             System.err.println("❌ Failed to load sample data: " + e.getMessage());

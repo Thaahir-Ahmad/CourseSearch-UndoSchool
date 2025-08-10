@@ -1,5 +1,4 @@
 package course.search.UndoSchool.service;
-
 import co.elastic.clients.elasticsearch.ElasticsearchClient;
 import co.elastic.clients.elasticsearch._types.SortOptions;
 import co.elastic.clients.elasticsearch._types.SortOrder;
@@ -9,23 +8,20 @@ import co.elastic.clients.elasticsearch._types.query_dsl.Query;
 import co.elastic.clients.elasticsearch._types.query_dsl.RangeQuery;
 import co.elastic.clients.elasticsearch._types.query_dsl.BoolQuery;
 import co.elastic.clients.json.JsonData;
-
 import course.search.UndoSchool.dto.CourseSearchReponseDto;
 import course.search.UndoSchool.dto.CourseSearchRequestDto;
-import course.search.UndoSchool.dto.CourseSearchResponseDto;
 import course.search.UndoSchool.mapper.CourseRequestMapper;
 import course.search.UndoSchool.mapper.CourseResponseMapper;
 import course.search.UndoSchool.model.CourseDocument;
 import course.search.UndoSchool.model.CourseSearchRequest;
 import course.search.UndoSchool.model.CourseSearchResponse;
-
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
-
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
-
 @Service
 @RequiredArgsConstructor
 public class CourseSearchService {
@@ -34,9 +30,10 @@ public class CourseSearchService {
     private final CourseRequestMapper courseRequestMapper;
     private final CourseResponseMapper courseResponseMapper;
 
-    public CourseSearchReponseDto search(CourseSearchRequestDto requestDto) throws IOException {
+    private static final Logger logger = LoggerFactory.getLogger(CourseSearchService.class);
+    public List<CourseSearchReponseDto> search(CourseSearchRequestDto requestDto) throws IOException {
         CourseSearchRequest request = courseRequestMapper.mapToCourseRequest(requestDto);
-
+        logger.info("Starting course search with request: {}", request);
         List<Query> mustQueries = new ArrayList<>();
         List<Query> filterQueries = new ArrayList<>();
 
@@ -44,14 +41,15 @@ public class CourseSearchService {
         if (request.getKeyword() != null && !request.getKeyword().isEmpty()) {
             mustQueries.add(Query.of(q -> q
                     .multiMatch(m -> m
-                            .fields("title", "description")
+                            .fields("title", "description", "title.keyword", "description.keyword")
                             .query(request.getKeyword())
                     )
             ));
+            logger.debug("Added keyword full-text search: {}", request.getKeyword());
         }
-
         // Filters
         if (request.getMinAge() != null || request.getMaxAge() != null) {
+            logger.debug("Filtering by age range: {} - {}", request.getMinAge(), request.getMaxAge());
             RangeQuery.Builder range = new RangeQuery.Builder().field("minAge");
             if (request.getMinAge() != null) range.gte(JsonData.of(request.getMinAge()));
             if (request.getMaxAge() != null) range.lte(JsonData.of(request.getMaxAge()));
@@ -66,20 +64,23 @@ public class CourseSearchService {
         }
 
         if (request.getCategory() != null) {
+            logger.debug("Filtering by category: {}", request.getCategory());
             filterQueries.add(Query.of(q -> q.term(t -> t
-                    .field("category.keyword")
+                    .field("category")
                     .value(request.getCategory())
             )));
         }
 
         if (request.getType() != null) {
+            logger.debug("Filtering by type: {}", request.getType());
             filterQueries.add(Query.of(q -> q.term(t -> t
-                    .field("type.keyword")
+                    .field("type")
                     .value(request.getType())
             )));
         }
 
         if (request.getNextSessionDate() != null) {
+            logger.debug("Filtering by next session date >= {}", request.getNextSessionDate());
             filterQueries.add(Query.of(q -> q.range(r -> r
                     .field("nextSessionDate")
                     .gte(JsonData.of(request.getNextSessionDate()))
@@ -91,7 +92,7 @@ public class CourseSearchService {
                 .must(mustQueries)
                 .filter(filterQueries)
         );
-
+        logger.info("Sorting by: {}", request.getSort());
         // Sorting
         List<SortOptions> sortOptions = new ArrayList<>();
         if ("priceAsc".equals(request.getSort())) {
@@ -104,9 +105,11 @@ public class CourseSearchService {
         }
 
         // Pagination
-        int page = request.getPage() != null ? request.getPage() : 0;
-        int size = request.getSize() != null ? request.getSize() : 10;
+        int page = request.getPage() != 0 ? request.getPage() : 0;
+        int size = request.getSize() != 0 ? request.getSize() : 25;
         int from = page * size;
+
+        logger.info("Pagination - page: {}, size: {}, from: {}", page, size, from);
 
         // Build search request
         SearchRequest searchRequest = SearchRequest.of(s -> s
@@ -116,14 +119,15 @@ public class CourseSearchService {
                 .size(size)
                 .sort(sortOptions)
         );
-
+        logger.debug("Built Elasticsearch query: {}", searchRequest);
         SearchResponse<CourseDocument> response = elasticsearchClient.search(searchRequest, CourseDocument.class);
-
+        logger.info("Elasticsearch returned {} results", response.hits().hits().size());
         List<CourseDocument> results = response.hits().hits().stream()
                 .map(hit -> hit.source())
                 .toList();
 
         CourseSearchResponse courseSearchResponse = new CourseSearchResponse(results, response.hits().total().value());
-        return courseResponseMapper.mapToDto(courseSearchResponse);
+        logger.debug("Mapped {} documents to CourseSearchResponse", results.size());
+        return courseResponseMapper.mapToDtoList(courseSearchResponse);
     }
 }

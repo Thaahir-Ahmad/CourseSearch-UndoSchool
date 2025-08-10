@@ -2,16 +2,13 @@ package course.search.UndoSchool.model;
 
 import lombok.*;
 import org.springframework.format.annotation.DateTimeFormat;
-import org.springframework.stereotype.Component;
-
 import java.time.LocalDate;
 
-@Getter
-@Setter
-@Builder
 @AllArgsConstructor
 @NoArgsConstructor
-@Component
+@Builder
+@Getter
+@Setter
 public class CourseSearchRequest {
     private String keyword;
     private String category;
@@ -20,6 +17,8 @@ public class CourseSearchRequest {
     private Double maxPrice;
     private Integer minAge;
     private Integer maxAge;
+    private String query;
+    private LocalDate startDate;
 
     @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
     private LocalDate nextSessionDate;

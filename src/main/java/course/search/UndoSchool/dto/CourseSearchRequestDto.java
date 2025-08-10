@@ -18,11 +18,12 @@ public class CourseSearchRequestDto {
     private Double maxPrice;
     private Integer minAge;
     private Integer maxAge;
+    private String query;
+    private String sort;
 
     @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
     private LocalDate nextSessionDate;
-
-    private String sort; // "priceAsc", "priceDesc", or null
+    // "priceAsc", "priceDesc", or null
     private int page = 0;
     private int size = 10;
 }

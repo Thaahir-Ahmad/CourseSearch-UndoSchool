@@ -11,7 +11,7 @@ import java.util.stream.Collectors;
 @Component
 public class CourseResponseMapper {
     public List<CourseSearchReponseDto> mapToDtoList(CourseSearchResponse response) {
-        return response.getCourses().stream()
+        return response.getResults().stream()
                 .map(this::mapToDto)
                 .collect(Collectors.toList());
     }
